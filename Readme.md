@@ -8,7 +8,6 @@
 ##### Fine-tuned модель лежит вот здесь - [huggingface](https://huggingface.co/RichelieuGVG/tinek_sample_model)
 
 ### Ролик с проверкой работы бота
-https://youtu.be/xe-dsLWpMxk xe-dsLWpMxk
 
 <a href="http://www.youtube.com/watch?feature=player_embedded&v=xe-dsLWpMxk" target="_blank"><img src="http://img.youtube.com/vi/xe-dsLWpMxk/0.jpg" 
 alt="Демонстрация работы бота" width="240" height="180" border="10" /></a>
