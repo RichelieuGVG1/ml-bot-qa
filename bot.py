@@ -8,7 +8,6 @@ from transformers import AutoTokenizer, T5ForConditionalGeneration, AutoModelFor
 import torch
 from dotenv import load_dotenv
 
-# Настройка логирования
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 # Загрузка модели и токенизатора
@@ -54,10 +53,9 @@ model = AutoGPTQForCausalLM.from_quantized(saved_checkpoint,
         use_triton=False,
         quantize_config=quantize_config)
 '''
-# Константы этапов
+
 ASK_CONTEXT, ASK_QUESTION = range(2)
 
-# Функция генерации текста
 def generate_text(prompt, tokenizer, model, n=1, temperature=0.8, num_beams=3):
     encoded_input = tokenizer.encode_plus(prompt, return_tensors='pt')
     encoded_input = {k: v.to(model.device) for k, v in encoded_input.items()}
@@ -77,14 +75,13 @@ def generate_text(prompt, tokenizer, model, n=1, temperature=0.8, num_beams=3):
 generate_text = partial(generate_text, tokenizer=tokenizer, model=model)
 
 def start(update: Update, context: CallbackContext) -> int:
-    reply_keyboard = [['Начать с начала']]  # Кнопка для перезапуска
+    reply_keyboard = [['Начать с начала']]  #кнопка рестарта
     update.message.reply_text(
         'Привет! Я нейросетевой бот от Василия Гурьянова для Тинькофф Sirius лагеря. Пожалуйста, введите контекст вашего вопроса.',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     )
     return ASK_CONTEXT
 
-# Обработчик для перезапуска при использовании фразы "начать с начала"
 def check_restart(update: Update, context: CallbackContext) -> bool:
     if 'начать с начала' in update.message.text.lower():
         context.user_data.clear()
@@ -94,9 +91,8 @@ def check_restart(update: Update, context: CallbackContext) -> bool:
         return True
     return False
 
-# Обработчик контекста
+
 def get_context(update: Update, context: CallbackContext) -> int:
-    # Проверяем, не запрашивает ли пользователь перезапуск
     if check_restart(update, context):
         return ASK_CONTEXT
 
@@ -110,9 +106,8 @@ def get_context(update: Update, context: CallbackContext) -> int:
     )
     return ASK_QUESTION
 
-# Обработчик вопроса
+
 def get_question(update: Update, context: CallbackContext) -> int:
-    # Проверяем, не запрашивает ли пользователь перезапуск
     if check_restart(update, context):
         return ASK_CONTEXT
 
@@ -121,7 +116,7 @@ def get_question(update: Update, context: CallbackContext) -> int:
     context.user_data['question'] = question
     logging.info("Вопрос от пользователя %s: %s", user.first_name, question)
 
-    # Формируем запрос для генерации
+   
     test_qa_prompt = f"Сгенерируй ответ на вопрос по тексту. Текст: '{context.user_data['test_context']}'. Вопрос: '{question}'."
     test_answers = generate_text(test_qa_prompt, n=1)[0]
 
@@ -132,7 +127,6 @@ def get_question(update: Update, context: CallbackContext) -> int:
 
     return ASK_QUESTION
 
-# Обработчик команды /new_request для перезапуска
 def new_request(update: Update, context: CallbackContext) -> int:
     context.user_data.clear()
     reply_keyboard = [['Начать с начала']]
@@ -142,53 +136,45 @@ def new_request(update: Update, context: CallbackContext) -> int:
     )
     return ASK_CONTEXT
 
-# Обработчик текстовых сообщений, фильтрация не текстовых сообщений
 def handle_text(update: Update, context: CallbackContext) -> int:
-    # Проверяем, не запрашивает ли пользователь перезапуск
     if check_restart(update, context):
         return ASK_CONTEXT
     
     update.message.reply_text('Пожалуйста, отправьте текстовое сообщение.')
 
-# Команда для завершения разговора
+
 def cancel(update: Update, context: CallbackContext) -> int:
     update.message.reply_text('Разговор завершен. До свидания!')
     return ConversationHandler.END
 
 def main():
-    # Введите свой токен здесь
     load_dotenv()
-    # Достаем токен
     TOKEN = os.getenv('TELEGRAM_TOKEN')
 
     updater = Updater(TOKEN)
 
-    # Диспетчер для обработки команд и сообщений
     dp = updater.dispatcher
 
-    # Определение последовательности команд и сообщений
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
             ASK_CONTEXT: [
                 MessageHandler(Filters.text & ~Filters.command, get_context),
-                CommandHandler('new_request', new_request)  # Обработка команды /new_request
+                CommandHandler('new_request', new_request) 
             ],
             ASK_QUESTION: [
                 MessageHandler(Filters.text & ~Filters.command, get_question),
-                CommandHandler('new_request', new_request)  # Обработка команды /new_request
+                CommandHandler('new_request', new_request) 
             ]
         },
         fallbacks=[CommandHandler('cancel', cancel),
-                   CommandHandler('new_request', new_request)]  # Обработка команды /new_request как fallback
+                   CommandHandler('new_request', new_request)]  
     )
 
-    # Добавление обработчиков
     dp.add_handler(conv_handler)
     dp.add_handler(MessageHandler(Filters.command, handle_text))
     dp.add_handler(MessageHandler(~Filters.text, handle_text))
 
-    # Запуск бота
     updater.start_polling()
     updater.idle()
 
